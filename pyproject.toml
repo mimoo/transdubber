@@ -1,0 +1,27 @@
+[project]
+name = "transdub"
+version = "0.1.0"
+description = "Translate and dub videos using AI voice cloning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["video", "dubbing", "voice-cloning", "tts", "translation", "mlx", "whisper"]
+dependencies = [
+    "click>=8.1.8",
+    "ffmpeg-python>=0.2.0",
+    "mlx-audio>=0.3.0",
+    "openai-whisper>=20250625",
+    "scipy>=1.15.3",
+    "soundfile>=0.13.1",
+    "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+improve = ["anthropic>=0.77.0"]
+
+[project.scripts]
+transdub = "transdub.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

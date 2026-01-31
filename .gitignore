@@ -13,3 +13,6 @@ wheels/
 *.wav
 *.mp4
 *.srt
+
+# Local environment
+.python-version
