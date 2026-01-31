@@ -205,6 +205,86 @@ def cut_silences(
         Path(audio_path).unlink(missing_ok=True)
 
 
+def remap_subtitles(
+    srt_path: Path,
+    output_path: Path,
+    segments: list[tuple[float, float]],
+) -> Path:
+    """
+    Remap subtitle timings to match cut video.
+
+    Args:
+        srt_path: Original SRT file
+        output_path: Output SRT file with remapped timings
+        segments: List of (start, end) segments that were kept
+
+    Returns:
+        Path to output SRT
+    """
+    from .srt_utils import parse_srt, SRTSegment
+
+    subs = parse_srt(srt_path)
+
+    # Build a mapping from original time to new time
+    # New time = original time minus all the gaps before it
+    def map_time(t: float) -> float | None:
+        """Map original time to new time, or None if in a cut region."""
+        new_t = 0.0
+        for seg_start, seg_end in segments:
+            if t < seg_start:
+                # Time is before this segment (in a cut region)
+                return None
+            elif t <= seg_end:
+                # Time is within this segment
+                return new_t + (t - seg_start)
+            else:
+                # Time is after this segment, accumulate duration
+                new_t += seg_end - seg_start
+        return None  # After all segments
+
+    # Remap subtitles
+    remapped = []
+    for sub in subs:
+        new_start = map_time(sub.start)
+        new_end = map_time(sub.end)
+
+        # Skip if subtitle is entirely in a cut region
+        if new_start is None and new_end is None:
+            continue
+
+        # If partially in cut region, adjust
+        if new_start is None:
+            new_start = 0.0
+        if new_end is None:
+            # Find the end of the last segment before this sub
+            new_end = new_start + 0.5  # Minimum duration
+
+        if new_end <= new_start:
+            new_end = new_start + 0.5
+
+        # Format timestamps
+        def fmt(t):
+            h = int(t // 3600)
+            m = int((t % 3600) // 60)
+            s = t % 60
+            return f"{h:02d}:{m:02d}:{s:06.3f}".replace(".", ",")
+
+        remapped.append(SRTSegment(
+            index=len(remapped) + 1,
+            start=new_start,
+            end=new_end,
+            start_str=fmt(new_start),
+            end_str=fmt(new_end),
+            text=sub.text,
+        ))
+
+    # Write output
+    from .srt_utils import write_srt
+    write_srt(remapped, output_path)
+
+    return output_path
+
+
 def get_silence_stats(
     video_path: Path,
     threshold_db: float = -40.0,
