@@ -1,6 +1,4 @@
 """Post-processing utilities for dubbed videos."""
-import os
-import subprocess
 import tempfile
 from pathlib import Path
 
@@ -97,11 +95,11 @@ def cut_silences(
     output_video: Path,
     max_silence: float = 0.3,
     threshold_db: float = -40.0,
-    min_silence_duration: float = 0.5,
+    min_silence_duration: float = 1.0,
     progress_callback=None,
 ) -> Path:
     """
-    Cut long silences from a video using concat demuxer.
+    Cut long silences from a video using moviepy.
 
     Args:
         input_video: Input video path
@@ -113,6 +111,7 @@ def cut_silences(
     Returns:
         Path to output video
     """
+    from moviepy import VideoFileClip, concatenate_videoclips
     import ffmpeg
 
     # Extract audio for analysis
@@ -120,9 +119,9 @@ def cut_silences(
         audio_path = tmp.name
 
     try:
-        # Extract audio
         if progress_callback:
-            progress_callback("Extracting audio...")
+            progress_callback("Extracting audio for analysis...")
+
         (
             ffmpeg
             .input(str(input_video))
@@ -135,9 +134,9 @@ def cut_silences(
         probe = ffmpeg.probe(str(input_video))
         duration = float(probe["format"]["duration"])
 
-        # Detect silences
         if progress_callback:
             progress_callback("Detecting silences...")
+
         silences = detect_silence_regions(
             Path(audio_path),
             threshold_db=threshold_db,
@@ -145,7 +144,8 @@ def cut_silences(
         )
 
         if not silences:
-            # No silences to cut, just copy
+            if progress_callback:
+                progress_callback("No significant silences found, copying...")
             (
                 ffmpeg
                 .input(str(input_video))
@@ -155,51 +155,49 @@ def cut_silences(
             )
             return output_video
 
-        # Create segments to keep
         segments = create_cut_filter(silences, max_silence, duration)
 
         if not segments:
             raise ValueError("No segments to keep after cutting")
 
+        total_keep = sum(end - start for start, end in segments)
         if progress_callback:
-            total_keep = sum(end - start for start, end in segments)
             progress_callback(f"Keeping {len(segments)} segments ({total_keep:.0f}s of {duration:.0f}s)")
 
-        # Create concat file with segments
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            concat_file = f.name
-            abs_input = str(Path(input_video).absolute())
-            for start, end in segments:
-                f.write(f"file '{abs_input}'\n")
-                f.write(f"inpoint {start:.6f}\n")
-                f.write(f"outpoint {end:.6f}\n")
+        # Load video with moviepy
+        if progress_callback:
+            progress_callback("Loading video...")
+        video = VideoFileClip(str(input_video))
 
-        try:
-            if progress_callback:
-                progress_callback("Re-encoding segments (this takes a while)...")
+        # Extract segments
+        if progress_callback:
+            progress_callback(f"Extracting {len(segments)} segments...")
 
-            # Must re-encode for clean cuts at arbitrary points
-            cmd = [
-                "ffmpeg", "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", concat_file,
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "18",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ar", "44100",
-                "-ac", "2",
-                str(output_video)
-            ]
+        clips = []
+        for i, (start, end) in enumerate(segments):
+            if progress_callback and i % 10 == 0:
+                progress_callback(f"  Segment {i}/{len(segments)}")
+            clips.append(video.subclipped(start, min(end, video.duration)))
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise RuntimeError(f"ffmpeg failed: {result.stderr}")
+        # Concatenate
+        if progress_callback:
+            progress_callback("Concatenating clips...")
+        final = concatenate_videoclips(clips)
 
-        finally:
-            os.unlink(concat_file)
+        # Write output
+        if progress_callback:
+            progress_callback("Writing video (this takes a few minutes)...")
+
+        final.write_videofile(
+            str(output_video),
+            codec="libx264",
+            audio_codec="aac",
+            preset="fast",
+            logger=None,
+        )
+
+        video.close()
+        final.close()
 
         return output_video
 
