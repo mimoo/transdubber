@@ -67,12 +67,16 @@ def main(
     click.echo(f"\nFound {stats['silence_count']} silence regions ({stats['total_silence']:.1f}s total)")
 
     # Cut silences
+    def progress(msg):
+        click.echo(f"  {msg}")
+
     result = cut_silences(
         video_path,
         Path(output),
         max_silence=max_silence,
         threshold_db=threshold,
         min_silence_duration=min_duration,
+        progress_callback=progress,
     )
 
     # Get new duration
