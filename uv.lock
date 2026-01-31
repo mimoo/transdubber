@@ -2270,11 +2270,10 @@ wheels = [
 ]
 
 [[package]]
-name = "transdub-videos"
+name = "transdub"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
-    { name = "anthropic" },
     { name = "click" },
     { name = "ffmpeg-python" },
     { name = "mlx-audio" },
@@ -2285,9 +2284,14 @@ dependencies = [
     { name = "tqdm" },
 ]
 
+[package.optional-dependencies]
+improve = [
+    { name = "anthropic" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.77.0" },
+    { name = "anthropic", marker = "extra == 'improve'", specifier = ">=0.77.0" },
     { name = "click", specifier = ">=8.1.8" },
     { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "mlx-audio", specifier = ">=0.3.0" },
@@ -2296,6 +2300,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tqdm", specifier = ">=4.67.1" },
 ]
+provides-extras = ["improve"]
 
 [[package]]
 name = "transformers"
