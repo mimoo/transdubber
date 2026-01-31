@@ -21,6 +21,12 @@ improve = ["anthropic>=0.77.0"]
 
 [project.scripts]
 transdub = "transdub.cli:main"
+transdub-transcribe = "transdub.translate_video:translate_video"
+transdub-tts = "transdub.tts_speak:main"
+transdub-clone = "transdub.voice_clone:main"
+transdub-dub = "transdub.dub_video:main"
+transdub-improve = "transdub.improve_translation:main"
+transdub-cut = "transdub.cut_silences:main"
 
 [build-system]
 requires = ["hatchling"]

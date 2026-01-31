@@ -17,8 +17,8 @@ uv run transdub video.mp4 --improve
 # Skip intro segments (different speaker)
 uv run transdub video.mp4 --skip "1-5"
 
-# Full example
-uv run transdub video.mp4 --improve --skip "1-5" --language English
+# Cut awkward silences from dubbed video
+uv run transdub-cut dubbed_video.mp4
 ```
 
 The pipeline automatically:
@@ -45,9 +45,23 @@ uv sync
 uv sync --extra improve
 ```
 
-## CLI Options
+## Commands
 
-```
+After `uv sync`, these commands are available:
+
+| Command | Description |
+|---------|-------------|
+| `transdub` | Full dubbing pipeline |
+| `transdub-transcribe` | Transcribe/translate video |
+| `transdub-tts` | Text-to-speech with preset voices |
+| `transdub-clone` | Clone a voice from audio |
+| `transdub-dub` | Dub video with existing SRT |
+| `transdub-improve` | Improve translations with Claude |
+| `transdub-cut` | Cut long silences from video |
+
+### Main Pipeline
+
+```bash
 transdub VIDEO [OPTIONS]
 
 Options:
@@ -64,6 +78,19 @@ Options:
   --dry-run                 Show what would be done
 ```
 
+### Post-Processing
+
+```bash
+# Cut long silences to improve flow
+transdub-cut dubbed_video.mp4
+
+# Customize silence threshold
+transdub-cut video.mp4 --max-silence 0.5
+
+# Just analyze silences
+transdub-cut video.mp4 --stats-only
+```
+
 ## Python API
 
 ```python
@@ -78,43 +105,10 @@ config = TransdubConfig(
 
 pipeline = TransdubPipeline(config)
 output_path = pipeline.run()
-```
 
-## Standalone Scripts
-
-For more control, use the individual scripts:
-
-```bash
-# Transcribe (keep original language)
-uv run translate_video.py video.mp4 --task transcribe --model medium
-
-# Translate to English
-uv run translate_video.py video.mp4 --task translate
-
-# Text-to-speech with preset voices
-uv run tts_speak.py "Hello, world"
-uv run tts_speak.py --list-voices
-
-# Voice cloning
-uv run voice_clone.py \
-    --ref-audio speaker.mp4 \
-    --ref-text "Words spoken in the reference" \
-    --text "New text to speak" \
-    --language English
-
-# Dub with existing SRT
-uv run dub_video.py \
-    --video video.mp4 \
-    --srt subtitles.srt \
-    --ref-start 38 --ref-duration 20 \
-    --ref-text "Reference transcript" \
-    --language English
-
-# Improve translations with Claude
-uv run improve_translation.py \
-    -f original.srt \
-    -e translated.srt \
-    -o improved.srt
+# Post-process to cut silences
+from transdub.postprocess import cut_silences
+cut_silences(output_path, "video_final.mp4", max_silence=0.3)
 ```
 
 ## Justfile Commands
@@ -122,6 +116,7 @@ uv run improve_translation.py \
 ```bash
 just dub video.mp4              # Full dubbing pipeline
 just dub-improve video.mp4      # With translation improvement
+just cut video.mp4              # Cut silences
 just transcribe video.mp4       # Transcribe only
 just translate video.mp4        # Translate only
 just speak "Hello world"        # Quick TTS
@@ -133,28 +128,33 @@ just voices                     # List TTS voices
 - **Voice cloning quality**: Use 10-20 seconds of clear speech without background noise
 - **Chunk duration**: Shorter chunks (8-12s) preserve voice better but may have more "cuts"
 - **Skip segments**: Use `--skip` to exclude intro/outro or different speakers
+- **Post-processing**: Use `transdub-cut` to remove awkward gaps in dubbed audio
 - **Testing**: Use `--dry-run` to preview what would be processed
 
 ## Project Structure
 
 ```
 transdub/
-├── transdub/              # Library
-│   ├── __init__.py
-│   ├── cli.py             # CLI entry point
+├── transdub/
+│   ├── __init__.py        # Package exports
+│   ├── cli.py             # Main CLI
 │   ├── config.py          # Configuration
-│   ├── pipeline.py        # Main orchestration
-│   ├── transcribe.py      # Whisper transcription
-│   ├── tts.py             # Voice cloning
+│   ├── pipeline.py        # Orchestration
+│   ├── transcribe.py      # Whisper integration
+│   ├── tts.py             # Voice cloning core
 │   ├── dubbing.py         # Audio generation
-│   ├── improve.py         # Claude translation improvement
-│   └── srt_utils.py       # SRT parsing
-├── transdub_cli.py        # Standalone CLI
-├── translate_video.py     # Standalone transcription
-├── tts_speak.py           # Standalone TTS
-├── voice_clone.py         # Standalone voice cloning
-├── dub_video.py           # Standalone dubbing
-└── improve_translation.py # Standalone improvement
+│   ├── improve.py         # Claude improvement
+│   ├── srt_utils.py       # SRT parsing
+│   ├── postprocess.py     # Silence cutting
+│   ├── translate_video.py # Transcription CLI
+│   ├── tts_speak.py       # TTS CLI
+│   ├── voice_clone.py     # Voice clone CLI
+│   ├── dub_video.py       # Dubbing CLI
+│   ├── improve_translation.py  # Improvement CLI
+│   └── cut_silences.py    # Silence cutting CLI
+├── pyproject.toml
+├── justfile
+└── README.md
 ```
 
 ## License
