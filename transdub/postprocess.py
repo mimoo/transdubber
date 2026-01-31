@@ -176,38 +176,27 @@ def cut_silences(
 
         try:
             if progress_callback:
-                progress_callback("Concatenating segments...")
+                progress_callback("Re-encoding segments (this takes a while)...")
 
-            # Use concat demuxer
+            # Must re-encode for clean cuts at arbitrary points
             cmd = [
                 "ffmpeg", "-y",
                 "-f", "concat",
                 "-safe", "0",
                 "-i", concat_file,
-                "-c", "copy",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "18",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "44100",
+                "-ac", "2",
                 str(output_video)
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                # If copy fails, try re-encoding
-                if progress_callback:
-                    progress_callback("Re-encoding (copy failed)...")
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", concat_file,
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "18",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    str(output_video)
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode != 0:
-                    raise RuntimeError(f"ffmpeg failed: {result.stderr}")
+                raise RuntimeError(f"ffmpeg failed: {result.stderr}")
 
         finally:
             os.unlink(concat_file)
