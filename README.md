@@ -131,6 +131,73 @@ just voices                     # List TTS voices
 - **Post-processing**: Use `transdub-cut` to remove awkward gaps in dubbed audio
 - **Testing**: Use `--dry-run` to preview what would be processed
 
+## Shell Function for Quick TTS
+
+Add a `speak` function to your shell for quick text-to-speech from anywhere:
+
+```bash
+# Clone the repo
+git clone https://github.com/your-username/transdub.git ~/transdub
+cd ~/transdub && uv sync
+
+# Add to ~/.zshrc (or ~/.bashrc)
+speak() { (cd ~/transdub && uv run transdub-tts "$1" --voice "${2:-serena}" -o /tmp/speech.wav) && afplay /tmp/speech.wav; }
+```
+
+Then reload your shell (`source ~/.zshrc`) and use it:
+
+```bash
+speak "Hello world"              # Uses default voice (serena)
+speak "Hello world" ryan         # Uses specific voice
+```
+
+### Available Voices
+
+| Voice | Description |
+|-------|-------------|
+| `serena` | Chinese female |
+| `vivian` | Chinese female |
+| `anna` | Japanese female |
+| `sohee` | Korean female |
+| `ryan` | English male |
+| `aiden` | English male |
+| `dylan` | Beijing dialect male |
+| `eric` | Sichuan dialect male |
+| `uncle_fu` | Chinese male (older) |
+
+## Using with AI Coding Agents
+
+You can configure AI coding agents (Claude Code, Cursor, etc.) to announce task completion or request attention using the `speak` function. Add this to your `CLAUDE.md` or `AGENTS.md`:
+
+```markdown
+## Voice Notifications
+
+When you complete a task or need user attention, use the `speak` shell function:
+
+- Task complete: `speak "Done with the task" serena`
+- Need follow-up: `speak "I have a question" serena`
+- Error occurred: `speak "Something went wrong" serena`
+
+Rules:
+- Keep messages under 50 characters (TTS works best with short text)
+- Use voice: serena (or assign different voices per agent/project)
+- Only announce significant milestones, not every small step
+```
+
+### Multi-Agent Voice Assignment
+
+For projects with multiple agents, assign different voices to distinguish them:
+
+```markdown
+## Agent Voices
+- Main agent: serena
+- Code review agent: vivian
+- Test runner agent: anna
+- Documentation agent: sohee
+```
+
+This way you'll know which agent is speaking without looking at the screen.
+
 ## Project Structure
 
 ```
